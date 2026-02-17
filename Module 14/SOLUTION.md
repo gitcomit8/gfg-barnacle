@@ -12,7 +12,7 @@ Replace the buggy `auth_middleware.rs` with the fixed version below:
 ```rust
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    Error, HttpResponse,
+    Error, HttpResponse, http::header, body::EitherBody,
 };
 use futures_util::future::LocalBoxFuture;
 use std::future::{ready, Ready};
@@ -25,7 +25,7 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type InitError = ();
     type Transform = AuthGuardMiddleware<S>;
@@ -46,7 +46,7 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
@@ -55,21 +55,22 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let path = req.path().to_string();
         
-        // FIX #1: Whitelist public routes that don't need authentication
-        let public_routes = vec!["/", "/login", "/auth/login", "/auth/status"];
+        // FIX: Whitelist public routes that don't need authentication
+        let public_routes = vec!["/", "/login", "/auth/login", "/auth/logout", "/auth/status"];
         
         let is_public = public_routes.iter().any(|&route| path.starts_with(route));
         
         if is_public {
+            // Allow public routes to pass through without authentication
             println!("✅ Public route: {} - allowing access", path);
             let fut = self.service.call(req);
             return Box::pin(async move {
                 let res = fut.await?;
-                Ok(res)
+                Ok(res.map_into_left_body())
             });
         }
         
-        // FIX #2: Only check authentication for protected routes
+        // Only check authentication for protected routes
         let auth_cookie = req.cookie("auth_token");
         let is_authenticated = auth_cookie.is_some();
         
@@ -78,11 +79,11 @@ where
             println!("❌ Protected route {} requires authentication! Redirecting to /login", path);
             
             let response = HttpResponse::Found()
-                .append_header(("Location", "/login"))
+                .insert_header((header::LOCATION, "/login"))
                 .finish();
             
             return Box::pin(async move {
-                Ok(req.into_response(response))
+                Ok(req.into_response(response).map_into_right_body())
             });
         }
         
@@ -91,7 +92,7 @@ where
         let fut = self.service.call(req);
         Box::pin(async move {
             let res = fut.await?;
-            Ok(res)
+            Ok(res.map_into_left_body())
         })
     }
 }
@@ -104,6 +105,8 @@ where
 2. **Check if route is public first**: Before checking authentication, we verify if the requested route is in the public list.
 
 3. **Only redirect protected routes**: Authentication is only required for routes NOT in the public list.
+
+The minimal change is adding the route whitelisting logic at the beginning of the `call` method. Everything else remains the same.
 
 ## Testing the Fix
 
