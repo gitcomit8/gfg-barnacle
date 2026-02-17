@@ -3,7 +3,7 @@
 
 // This cache name is set at Service Worker installation time
 // BUG: This variable is initialized when the file is first parsed and never updates
-let CURRENT_CACHE = 'pwa-cache-v1';
+let CURRENT_CACHE = `pwa-cache-${CACHE_VERSION}`;
 
 // Version that should be updated with each deployment
 const CACHE_VERSION = 'v1';

@@ -91,7 +91,8 @@ AFTER HARD RELOAD (Ctrl+Shift+R)
 
 ```javascript
 // AT PARSE TIME:
-let CURRENT_CACHE = 'pwa-cache-v1';  // ← Captured in closure
+const CACHE_VERSION = 'v1';
+let CURRENT_CACHE = `pwa-cache-${CACHE_VERSION}`;  // ← Evaluates to 'pwa-cache-v1', captured in closure
 
 self.addEventListener('fetch', (event) => {
   //                           ↓ Closure captures 'pwa-cache-v1'
@@ -101,6 +102,9 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// WHEN CACHE_VERSION CHANGES TO 'v2' AND SERVICE WORKER UPDATES:
+// CURRENT_CACHE variable still evaluates to 'pwa-cache-v1' until file is re-parsed
 
 // LATER IN ACTIVATE:
 CURRENT_CACHE = 'pwa-cache-v2';  // ← Variable updated

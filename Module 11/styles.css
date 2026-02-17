@@ -120,12 +120,11 @@ h2, h3 {
 .btn {
   padding: 12px 24px;
   font-size: 1em;
-  border: none;
+  border: 2px solid var(--on-surface);
   border-radius: 6px;
   cursor: pointer;
   background-color: var(--surface);
   color: var(--on-surface);
-  border: 2px solid var(--on-surface);
   transition: all 0.3s ease;
   font-weight: 500;
 }
