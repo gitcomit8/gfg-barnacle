@@ -2,7 +2,7 @@
 // This file demonstrates how the buggy Rust/WASM module would be used
 // in a Next.js application, causing hydration mismatch errors.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 
 // ❌ BUGGY COMPONENT - Causes Hydration Mismatch
 // This component uses the Rust WASM module that generates random values
