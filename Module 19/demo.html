@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 19: Waker Bug Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .warning strong {
+            color: #856404;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .buggy-panel {
+            border: 3px solid #dc3545;
+        }
+
+        .correct-panel {
+            border: 3px solid #28a745;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .btn-buggy {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-buggy:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+        .btn-correct {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-correct:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .status.idle {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.hung {
+            background: #f8d7da;
+            color: #721c24;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .console-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #667eea;
+            padding-left: 10px;
+        }
+
+        .log-error {
+            border-left-color: #dc3545;
+            color: #ff6b6b;
+        }
+
+        .log-success {
+            border-left-color: #28a745;
+            color: #51cf66;
+        }
+
+        .log-warning {
+            border-left-color: #ffc107;
+            color: #ffd43b;
+        }
+
+        footer {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .explanation {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐛 Module 19: Custom Future Waker Bug Demo</h1>
+            <p>This demo shows a critical bug where a custom Future returns Poll::Pending without storing or calling the Waker.</p>
+            <div class="warning">
+                <strong>⚠️ Warning:</strong> The "buggy" examples will hang forever! Open your browser's Developer Console (F12) to see what's happening.
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- Buggy Version -->
+            <div class="panel buggy-panel">
+                <h2>❌ Buggy Implementation</h2>
+                <p><strong>This WILL hang forever!</strong></p>
+                <p>The Future returns Poll::Pending but never calls the Waker.</p>
+                
+                <button id="btn-buggy" class="btn-buggy">
+                    Fetch Data (Buggy - Will Hang!)
+                </button>
+                
+                <button id="btn-user-buggy" class="btn-buggy">
+                    Get User Data (Also Hangs!)
+                </button>
+                
+                <button id="btn-countdown-buggy" class="btn-buggy">
+                    Countdown (Hangs Immediately!)
+                </button>
+                
+                <div id="status-buggy" class="status idle">
+                    Ready to demonstrate the bug
+                </div>
+                
+                <div class="explanation">
+                    <strong>What happens:</strong>
+                    <ul>
+                        <li>✓ Function is called</li>
+                        <li>✓ JS Promise is created</li>
+                        <li>✓ Future is polled once</li>
+                        <li>✓ Returns Poll::Pending</li>
+                        <li>❌ Waker is NOT stored</li>
+                        <li>✓ JS Promise resolves</li>
+                        <li>❌ No one wakes the Future</li>
+                        <li>❌ await hangs forever</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Correct Version -->
+            <div class="panel correct-panel">
+                <h2>✅ Correct Implementation</h2>
+                <p><strong>This works as expected!</strong></p>
+                <p>Uses JsFuture which properly handles the Waker.</p>
+                
+                <button id="btn-correct" class="btn-correct">
+                    Fetch Data (Correct - Works!)
+                </button>
+                
+                <button id="btn-test-timing" class="btn-correct">
+                    Test Response Timing
+                </button>
+                
+                <div id="status-correct" class="status idle">
+                    Ready to demonstrate correct behavior
+                </div>
+                
+                <div class="explanation">
+                    <strong>What happens:</strong>
+                    <ul>
+                        <li>✓ Function is called</li>
+                        <li>✓ JS Promise is created</li>
+                        <li>✓ JsFuture stores the Waker</li>
+                        <li>✓ Returns Poll::Pending</li>
+                        <li>✓ JS Promise resolves</li>
+                        <li>✓ Callback wakes the Future</li>
+                        <li>✓ Future is polled again</li>
+                        <li>✓ Returns Poll::Ready</li>
+                        <li>✓ await completes successfully!</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>📋 Console Output</h2>
+            <p>Watch the messages below (or open browser DevTools for full output):</p>
+            <div id="console" class="console-output">
+                <div class="log-entry">Console output will appear here...</div>
+            </div>
+        </div>
+
+        <footer>
+            <p><strong>Educational Module:</strong> This code is intentionally buggy to demonstrate missing Waker calls in custom Futures.</p>
+            <p>See README.md for detailed explanation and fix instructions.</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import init, { 
+            fetch_data_buggy, 
+            fetch_data_correct,
+            get_user_data,
+            countdown_buggy
+        } from './pkg/waker_bug_module.js';
+
+        const consoleDiv = document.getElementById('console');
+        const btnBuggy = document.getElementById('btn-buggy');
+        const btnUserBuggy = document.getElementById('btn-user-buggy');
+        const btnCountdownBuggy = document.getElementById('btn-countdown-buggy');
+        const btnCorrect = document.getElementById('btn-correct');
+        const btnTestTiming = document.getElementById('btn-test-timing');
+        const statusBuggy = document.getElementById('status-buggy');
+        const statusCorrect = document.getElementById('status-correct');
+
+        // Intercept console.log to show in our console div
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'string' ? arg : JSON.stringify(arg)
+            ).join(' ');
+            addLogEntry(message);
+        };
+
+        function addLogEntry(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type === 'error' ? 'log-error' : type === 'success' ? 'log-success' : type === 'warning' ? 'log-warning' : ''}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function setStatus(element, status, message) {
+            element.className = `status ${status}`;
+            element.textContent = message;
+        }
+
+        async function runBuggy() {
+            btnBuggy.disabled = true;
+            setStatus(statusBuggy, 'loading', '⏳ Calling buggy function...');
+            addLogEntry('=== BUGGY FETCH TEST ===', 'warning');
+            
+            console.log('Starting buggy fetch_data_buggy(2000)...');
+            
+            // Set a timeout to show the hang
+            const hangTimer = setTimeout(() => {
+                addLogEntry('⚠️  Still waiting after 5 seconds - IT\'S HUNG!', 'error');
+                setStatus(statusBuggy, 'hung', '🔴 HUNG! The Future never woke up!');
+            }, 5000);
+            
+            try {
+                const result = await fetch_data_buggy(2000);
+                clearTimeout(hangTimer);
+                console.log('Result:', result);
+                addLogEntry('Completed! (This will never print)', 'success');
+                setStatus(statusBuggy, 'success', '✓ Completed (IMPOSSIBLE!)');
+                btnBuggy.disabled = false;
+            } catch (error) {
+                clearTimeout(hangTimer);
+                addLogEntry(`Error: ${error}`, 'error');
+                setStatus(statusBuggy, 'error', `❌ Error: ${error}`);
+                btnBuggy.disabled = false;
+            }
+        }
+
+        async function runUserDataBuggy() {
+            btnUserBuggy.disabled = true;
+            setStatus(statusBuggy, 'loading', '⏳ Fetching user data...');
+            addLogEntry('=== BUGGY USER DATA TEST ===', 'warning');
+            
+            console.log('Calling get_user_data(123)...');
+            
+            const hangTimer = setTimeout(() => {
+                addLogEntry('⚠️  User data fetch hung!', 'error');
+                setStatus(statusBuggy, 'hung', '🔴 HUNG! Never received user data!');
+            }, 5000);
+            
+            try {
+                const result = await get_user_data(123);
+                clearTimeout(hangTimer);
+                console.log('User data:', result);
+                addLogEntry(`User: ${result}`, 'success');
+                setStatus(statusBuggy, 'success', '✓ Got user data');
+                btnUserBuggy.disabled = false;
+            } catch (error) {
+                clearTimeout(hangTimer);
+                addLogEntry(`Error: ${error}`, 'error');
+                setStatus(statusBuggy, 'error', `❌ Error`);
+                btnUserBuggy.disabled = false;
+            }
+        }
+
+        async function runCountdownBuggy() {
+            btnCountdownBuggy.disabled = true;
+            setStatus(statusBuggy, 'loading', '⏳ Starting countdown...');
+            addLogEntry('=== BUGGY COUNTDOWN TEST ===', 'warning');
+            
+            console.log('Calling countdown_buggy(3)...');
+            
+            const hangTimer = setTimeout(() => {
+                addLogEntry('⚠️  Countdown hung!', 'error');
+                setStatus(statusBuggy, 'hung', '🔴 HUNG! Countdown never completed!');
+            }, 5000);
+            
+            try {
+                const result = await countdown_buggy(3);
+                clearTimeout(hangTimer);
+                console.log('Countdown result:', result);
+                addLogEntry('Countdown completed!', 'success');
+                setStatus(statusBuggy, 'success', '✓ Countdown done');
+                btnCountdownBuggy.disabled = false;
+            } catch (error) {
+                clearTimeout(hangTimer);
+                addLogEntry(`Error: ${error}`, 'error');
+                setStatus(statusBuggy, 'error', `❌ Error`);
+                btnCountdownBuggy.disabled = false;
+            }
+        }
+
+        async function runCorrect() {
+            btnCorrect.disabled = true;
+            setStatus(statusCorrect, 'loading', '⏳ Calling correct function...');
+            addLogEntry('=== CORRECT FETCH TEST ===', 'success');
+            
+            console.log('Starting correct fetch_data_correct(2000)...');
+            
+            const startTime = Date.now();
+            
+            try {
+                const result = await fetch_data_correct(2000);
+                const elapsed = Date.now() - startTime;
+                
+                console.log('Result:', result);
+                addLogEntry(`✓ Completed in ${elapsed}ms`, 'success');
+                setStatus(statusCorrect, 'success', `✓ Completed successfully in ${elapsed}ms!`);
+            } catch (error) {
+                addLogEntry(`Error: ${error}`, 'error');
+                setStatus(statusCorrect, 'error', `❌ Error: ${error}`);
+            } finally {
+                btnCorrect.disabled = false;
+            }
+        }
+
+        async function testTiming() {
+            btnTestTiming.disabled = true;
+            setStatus(statusCorrect, 'loading', '⏳ Testing timing...');
+            addLogEntry('=== TIMING COMPARISON TEST ===', 'success');
+            
+            // Test multiple calls in sequence
+            const delays = [500, 1000, 1500];
+            
+            for (const delay of delays) {
+                console.log(`Testing ${delay}ms delay...`);
+                const start = Date.now();
+                
+                try {
+                    await fetch_data_correct(delay);
+                    const elapsed = Date.now() - start;
+                    addLogEntry(`${delay}ms delay: completed in ${elapsed}ms ✓`, 'success');
+                } catch (error) {
+                    addLogEntry(`${delay}ms delay: failed!`, 'error');
+                }
+            }
+            
+            setStatus(statusCorrect, 'success', '✓ All timing tests passed!');
+            btnTestTiming.disabled = false;
+        }
+
+        // Initialize the WASM module
+        async function initialize() {
+            try {
+                await init();
+                addLogEntry('✓ WASM module loaded successfully', 'success');
+                
+                // Set up event listeners
+                btnBuggy.addEventListener('click', runBuggy);
+                btnUserBuggy.addEventListener('click', runUserDataBuggy);
+                btnCountdownBuggy.addEventListener('click', runCountdownBuggy);
+                btnCorrect.addEventListener('click', runCorrect);
+                btnTestTiming.addEventListener('click', testTiming);
+                
+                addLogEntry('Ready! Click buttons to test.', 'success');
+            } catch (error) {
+                addLogEntry(`Failed to initialize: ${error}`, 'error');
+            }
+        }
+
+        initialize();
+    </script>
+</body>
+</html>
