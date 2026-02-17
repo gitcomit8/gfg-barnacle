@@ -1,0 +1,36 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# WASM build output
+/pkg/
+pkg-tests/
+
+# Cargo lock file (some prefer to include this)
+Cargo.lock
+
+# Debug files
+*.dSYM/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (if using npm for testing)
+node_modules/
+
+# Test coverage
+coverage/
+*.profraw
+
+# Temporary files
+tmp/
+temp/
