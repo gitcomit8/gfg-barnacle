@@ -75,7 +75,7 @@ impl DataProcessor {
     /// "already borrowed: BorrowMutError"
     #[wasm_bindgen]
     pub fn get_item_count(&self) -> usize {
-        // BUG: This borrow_mut() will panic if state is already borrowed
+        // BUG: This borrow() will panic if state is already borrowed mutably
         // Participants usually call this from JS callbacks during processing
         let state = self.state.borrow();
         console::log_1(&JsValue::from_str(&format!("Getting item count: {}", state.items.len())));
