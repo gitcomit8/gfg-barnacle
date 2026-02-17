@@ -2,6 +2,7 @@ use actix_web::{web, App, HttpResponse, HttpServer, Result};
 use futures::stream::{Stream};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::time::interval;
 use tokio_stream::wrappers::IntervalStream;
@@ -9,7 +10,7 @@ use tokio_stream::StreamExt;
 
 // Global counter to track active SSE connections
 // This is where the bug manifests - connections keep accumulating
-static mut CONNECTION_COUNTER: usize = 0;
+static CONNECTION_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Clone)]
 struct AppState {
@@ -22,12 +23,10 @@ struct AppState {
 async fn sse_notifications(
     data: web::Data<AppState>,
 ) -> Result<HttpResponse> {
-    unsafe {
-        CONNECTION_COUNTER += 1;
-        let connection_id = CONNECTION_COUNTER;
-        
-        // Add to active connections but never remove
-        let mut connections = data.active_connections.lock().unwrap();
+    let connection_id = CONNECTION_COUNTER.fetch_add(1, Ordering::SeqCst) + 1;
+    
+    // Add to active connections but never remove
+    if let Ok(mut connections) = data.active_connections.lock() {
         connections.push(connection_id);
         println!("🔌 New SSE connection opened: #{} (Total active: {})", 
                  connection_id, connections.len());
@@ -62,7 +61,9 @@ fn create_notification_stream() -> Pin<Box<dyn Stream<Item = Result<web::Bytes, 
 
 // Endpoint to check active connections
 async fn connection_status(data: web::Data<AppState>) -> Result<HttpResponse> {
-    let connections = data.active_connections.lock().unwrap();
+    let connections = data.active_connections.lock()
+        .map_err(|e| actix_web::error::ErrorInternalServerError(format!("Lock error: {}", e)))?;
+    
     let status = serde_json::json!({
         "active_connections": connections.len(),
         "connection_ids": *connections,
