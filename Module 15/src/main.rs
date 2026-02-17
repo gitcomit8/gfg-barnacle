@@ -47,13 +47,15 @@ fn create_notification_stream() -> Pin<Box<dyn Stream<Item = Result<web::Bytes, 
     let stream = IntervalStream::new(ticker);
 
     Box::pin(stream.map(move |_| {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or(Duration::from_secs(0))
+            .as_secs();
+        
         let notification = format!(
             "data: {{\"message\": \"Notification at {}\", \"timestamp\": {}}}\n\n",
             chrono::Local::now().format("%H:%M:%S"),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
+            timestamp
         );
         Ok(web::Bytes::from(notification))
     }))
