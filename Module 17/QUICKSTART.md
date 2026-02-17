@@ -126,8 +126,11 @@ processor.apply_grayscale();
 processor.apply_grayscale();
 // Should work ✓
 
-canvas.getContext('2d').fillRect(0, 0, 100, 100);
-// Your fix here
+// JS modifies GL state
+const gl = canvas.getContext('webgl');
+const tempProgram = gl.createProgram();
+gl.useProgram(tempProgram);
+// Your fix here (e.g., processor.notify_external_gl_modification())
 
 processor.apply_grayscale();
 // Should still work ✓
@@ -164,12 +167,13 @@ main();
 ```javascript
 // BUGGY CODE (don't do this)
 processor.apply_grayscale();
-ctx.fillRect(0, 0, 100, 100);  // JS modifies GL
-processor.apply_grayscale();   // BUG!
+const gl = canvas.getContext('webgl');
+gl.useProgram(someOtherProgram);  // JS modifies GL
+processor.apply_grayscale();      // BUG!
 
 // FIXED CODE (do this)
 processor.apply_grayscale();
-ctx.fillRect(0, 0, 100, 100);
+gl.useProgram(someOtherProgram);
 processor.invalidate_cache();  // Notify WASM
 processor.apply_grayscale();   // Works!
 ```

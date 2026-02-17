@@ -129,8 +129,10 @@ impl ImageProcessor {
 **JavaScript usage**:
 ```javascript
 // After JS modifies GL state
-const ctx = canvas.getContext('2d');
-ctx.fillRect(0, 0, 100, 100);
+const gl = canvas.getContext('webgl');
+const jsProgram = gl.createProgram();
+// ... setup shader program
+gl.useProgram(jsProgram);  // Modifies GL state
 
 // Notify WASM
 processor.notify_external_gl_modification();
@@ -295,9 +297,11 @@ Create integration tests that interleave JS and WASM:
 test('handles interleaved JS/WASM operations', async () => {
     await processor.apply_grayscale();
     
-    // JS modifies GL
-    const ctx = canvas.getContext('2d');
-    ctx.fillRect(0, 0, 100, 100);
+    // JS modifies GL state
+    const gl = canvas.getContext('webgl');
+    const jsProgram = gl.createProgram();
+    // ... create shaders and link program
+    gl.useProgram(jsProgram);  // Modifies GL state
     
     // Apply solution (e.g., call notify)
     processor.notify_external_gl_modification();

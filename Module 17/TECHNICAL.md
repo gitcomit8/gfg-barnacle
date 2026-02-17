@@ -70,9 +70,9 @@ struct GLStateCache {
    └─> Render ✓
 
 2. JS: renderUIOverlay()
-   └─> Get 2D context (internally uses WebGL)
-   └─> Draw overlay with different shader
-   └─> GL state changes: current_program = OverlayShader
+   └─> Create JS shader program
+   └─> Call gl.useProgram(jsProgram)
+   └─> GL state changes: current_program = JSProgram
    └─> WASM cache now STALE! ✗
 
 3. WASM: apply_grayscale() again
@@ -161,10 +161,13 @@ For 60 FPS rendering (16.67ms per frame), these seem negligible. However:
 ### Scenario 1: UI Overlay Rendering
 
 ```javascript
-// User clicks button → render tooltip
+// User clicks button → render tooltip with different shader
 function showTooltip() {
-    const ctx = canvas.getContext('2d');  // Gets/uses GL context
-    ctx.fillText("Tooltip", x, y);        // Modifies GL state
+    const gl = canvas.getContext('webgl');
+    
+    // JS creates its own shader for UI rendering
+    const uiProgram = createUIShaderProgram(gl);
+    gl.useProgram(uiProgram);  // Modifies GL state!
 }
 
 // Next WASM call uses stale cache → glitch
