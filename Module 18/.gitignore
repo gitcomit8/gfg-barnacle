@@ -1,7 +1,0 @@
-/target
-/pkg
-Cargo.lock
-**/*.rs.bk
-*.wasm
-node_modules/
-.DS_Store
