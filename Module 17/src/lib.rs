@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{console, WebGlRenderingContext, WebGlProgram, WebGlShader, WebGlTexture, WebGlBuffer};
+use web_sys::{console, WebGlRenderingContext, WebGlProgram, WebGlShader, WebGlBuffer};
 use js_sys::Float32Array;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -18,14 +18,22 @@ use std::rc::Rc;
 /// 4. GL renders with wrong shaders/textures, causing visual glitches
 /// 5. Bug only appears after specific JS UI updates, making it non-deterministic
 
+/// Enum representing which shader program is active
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ProgramType {
+    Grayscale,
+    Blur,
+    Invert,
+}
+
 /// Cached WebGL state - THIS IS THE SOURCE OF THE BUG
 /// The cache assumes the GL state hasn't been modified externally
 #[derive(Clone)]
 struct GLStateCache {
-    current_program: Option<u32>,  // Cached program ID
-    current_texture: Option<u32>,  // Cached texture binding
-    current_buffer: Option<u32>,   // Cached buffer binding
-    invert_mode: bool,             // Whether to invert colors
+    current_program: Option<ProgramType>,  // Cached program type
+    current_texture: Option<u32>,          // Cached texture binding
+    current_buffer: Option<u32>,           // Cached buffer binding
+    invert_mode: bool,                     // Whether to invert colors
 }
 
 impl GLStateCache {
@@ -196,7 +204,9 @@ impl ImageProcessor {
         self.context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
         
         // BUG: We're caching this buffer binding
-        self.state_cache.borrow_mut().current_buffer = Some(buffer.as_ref() as *const _ as u32);
+        // Note: In a real implementation, we'd store a proper buffer ID
+        // For this demo, we just mark that *a* buffer is bound
+        self.state_cache.borrow_mut().current_buffer = Some(1);
         
         unsafe {
             let vertex_array = Float32Array::view(&vertices);
@@ -221,11 +231,11 @@ impl ImageProcessor {
         
         // BUG: Check cache instead of always binding
         // If JS has changed the current program, we won't detect it!
-        let program_id = program.as_ref() as *const _ as u32;
-        if self.state_cache.borrow().current_program != Some(program_id) {
+        let program_type = ProgramType::Grayscale;
+        if self.state_cache.borrow().current_program != Some(program_type) {
             console::log_1(&JsValue::from_str("Cache miss: binding grayscale program"));
             self.context.use_program(Some(program));
-            self.state_cache.borrow_mut().current_program = Some(program_id);
+            self.state_cache.borrow_mut().current_program = Some(program_type);
         } else {
             // BUG: Assumes program is still active - it might not be!
             console::log_1(&JsValue::from_str("Cache hit: skipping program bind (POTENTIAL BUG!)"));
@@ -244,11 +254,11 @@ impl ImageProcessor {
             .ok_or_else(|| JsValue::from_str("Blur program not initialized"))?;
         
         // BUG: Same caching issue
-        let program_id = program.as_ref() as *const _ as u32;
-        if self.state_cache.borrow().current_program != Some(program_id) {
+        let program_type = ProgramType::Blur;
+        if self.state_cache.borrow().current_program != Some(program_type) {
             console::log_1(&JsValue::from_str("Cache miss: binding blur program"));
             self.context.use_program(Some(program));
-            self.state_cache.borrow_mut().current_program = Some(program_id);
+            self.state_cache.borrow_mut().current_program = Some(program_type);
         } else {
             console::log_1(&JsValue::from_str("Cache hit: skipping program bind (POTENTIAL BUG!)"));
         }
@@ -270,16 +280,16 @@ impl ImageProcessor {
             .ok_or_else(|| JsValue::from_str("Invert program not initialized"))?;
         
         // BUG: Cache check - this is where the bug manifests most often
-        let program_id = program.as_ref() as *const _ as u32;
+        let program_type = ProgramType::Invert;
         let cache = self.state_cache.borrow();
         
         // CRITICAL BUG: If JS modified the GL state for UI rendering,
         // our cache will be wrong but we'll think it's correct!
-        if cache.current_program != Some(program_id) {
+        if cache.current_program != Some(program_type) {
             drop(cache); // Release borrow
             console::log_1(&JsValue::from_str("Cache miss: binding invert program"));
             self.context.use_program(Some(program));
-            self.state_cache.borrow_mut().current_program = Some(program_id);
+            self.state_cache.borrow_mut().current_program = Some(program_type);
         } else {
             drop(cache); // Release borrow
             // BUG: We think the program is active, but JS may have changed it!
