@@ -76,14 +76,14 @@ function createNewUser() {
 
 Each `AppState` object contains:
 - `user_id`: 4 bytes
-- `username`: Variable (String allocation)
-- `session_token`: Variable (String allocation)
+- `username`: Variable (~20-100 bytes for typical usernames)
+- `session_token`: Variable (~50-100 bytes for token strings)
 - `preferences`: 
-  - Strings: ~100 bytes
+  - Strings: ~100 bytes (theme, language)
   - `data`: **102,400 bytes (100KB vector)**
-- `activity_log`: Variable (Vec allocation)
+- `activity_log`: Variable (Vec allocation, grows with usage)
 
-**Total per leak**: ~100KB minimum
+**Total per leak**: ~100KB minimum + variable overhead
 
 With 100 user interactions:
 - Memory leaked: ~10MB

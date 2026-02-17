@@ -36,7 +36,7 @@ impl AppState {
         
         AppState {
             user_id,
-            username: username.clone(),
+            username,
             session_token: format!("token_{}_{}", user_id, js_sys::Date::now()),
             preferences: UserPreferences {
                 theme: String::from("dark"),
