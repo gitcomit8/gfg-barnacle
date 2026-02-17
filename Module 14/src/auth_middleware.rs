@@ -43,18 +43,14 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let path = req.path().to_string();
         
-        // BUG #1: No route whitelisting! 
+        // BUG: No route whitelisting! 
         // The /login route is also checked for authentication
         // This causes infinite redirects!
-        
-        // BUG #2: We check auth status immediately without considering
-        // that it might be in a "loading" state (None/null)
         
         let auth_cookie = req.cookie("auth_token");
         
         // Check if user is authenticated by looking for auth cookie
-        // BUG: We treat None (not set yet) as "not authenticated"
-        // and redirect immediately, even if we're already on /login!
+        // BUG: We redirect to /login even if we're already on /login!
         let is_authenticated = auth_cookie.is_some();
         
         if !is_authenticated {

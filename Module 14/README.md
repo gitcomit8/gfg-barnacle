@@ -8,7 +8,6 @@ The authentication guard has a critical flaw that causes infinite redirect loops
 
 1. **The guard redirects unauthenticated users to `/login`**
 2. **BUT the `/login` route itself is also protected by the auth guard!**
-3. **Additionally, the `isAuthed` state is initialized as `None` (null/falsy) before the API check completes**
 
 This creates a "Too many redirects" error in the browser because:
 - User tries to access `/dashboard` → not authenticated → redirect to `/login`
@@ -17,8 +16,8 @@ This creates a "Too many redirects" error in the browser because:
 
 ## The Challenge
 Participants must fix:
-1. **Route whitelisting**: Certain routes (like `/login`, `/register`, `/public`) should NOT trigger the auth check
-2. **Initialization logic**: The auth state should have a proper initial state that doesn't cause redirects during the loading phase
+1. **Route whitelisting**: Certain routes (like `/login`, `/`, `/auth/*`) should NOT trigger the auth check and should be publicly accessible
+2. **Middleware logic**: The authentication middleware needs to distinguish between public and protected routes
 
 ## Running the Module
 
@@ -40,13 +39,13 @@ The server will start on `http://localhost:8080`
 ## Expected Behavior (After Fix)
 - Unauthenticated users should be able to access `/login` and `/` without redirects
 - Authenticated users should be able to access `/dashboard`
-- The auth state should handle the "loading" phase properly
+- The `/auth/*` endpoints should be publicly accessible (for login/logout operations)
 
 ## Hints
 - Look at the `auth_middleware.rs` file
-- Check which routes are being protected
-- Consider the auth state initialization in the middleware
-- Think about how to whitelist public routes
+- Check which routes are being protected - currently ALL routes require authentication!
+- The middleware needs to check the request path before enforcing authentication
+- Think about how to whitelist public routes that should skip the auth check
 
 ## Difficulty Level
 **Medium-Hard** ⭐⭐⭐⭐

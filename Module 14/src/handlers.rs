@@ -50,9 +50,9 @@ pub async fn home() -> impl Responder {
             <h2>Your Challenge:</h2>
             <p>Fix the auth_middleware.rs file to:</p>
             <ol>
-                <li>Whitelist public routes like /login and / so they don't require authentication</li>
-                <li>Handle the initial "loading" state properly</li>
-                <li>Only protect routes that actually need authentication</li>
+                <li>Whitelist public routes like /login, /, and /auth/* so they don't require authentication</li>
+                <li>Only protect routes that actually need authentication (like /dashboard)</li>
+                <li>Ensure the middleware checks the request path before enforcing authentication</li>
             </ol>
         </body>
         </html>

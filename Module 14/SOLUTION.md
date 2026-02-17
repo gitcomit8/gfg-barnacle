@@ -1,12 +1,9 @@
 # Solution: Fixing the Infinite Redirect Bug
 
-## The Problems
+## The Problem
 
-### Problem 1: No Route Whitelisting
+### Problem: No Route Whitelisting
 The authentication middleware checks ALL routes, including `/login` itself. When a user tries to access `/login` without authentication, they get redirected to `/login`, creating an infinite loop.
-
-### Problem 2: No Loading State Handling
-The middleware treats the absence of an auth cookie as "not authenticated" immediately, without considering that the application might be in a loading state.
 
 ## The Fix
 
@@ -102,7 +99,7 @@ where
 
 ## Key Changes
 
-1. **Added `public_routes` whitelist**: Routes like `/`, `/login`, and `/auth/login` are explicitly marked as public and skip authentication checks.
+1. **Added `public_routes` whitelist**: Routes like `/`, `/login`, and `/auth/*` are explicitly marked as public and skip authentication checks.
 
 2. **Check if route is public first**: Before checking authentication, we verify if the requested route is in the public list.
 
@@ -144,9 +141,9 @@ pub struct AuthGuard {
 
 ## Learning Points
 
-1. **Middleware order matters**: Authentication checks should happen after route matching for public routes.
+1. **Middleware order matters**: Authentication checks should not apply to routes that facilitate authentication itself.
 2. **Always whitelist auth routes**: Login, register, and password reset pages must be accessible without authentication.
-3. **State initialization**: Consider loading/pending states in authentication flows.
-4. **User experience**: Infinite redirects create a poor user experience and are a common bug in web applications.
+3. **User experience**: Infinite redirects create a poor user experience and are a common bug in web applications.
+4. **Route protection**: Not all routes need authentication - distinguish between public and protected routes.
 
 This is a real-world bug that happens frequently in production applications!
