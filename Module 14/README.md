@@ -52,6 +52,6 @@ The server will start on `http://localhost:8080`
 
 The bug is subtle because:
 - It's a logical error in route protection
-- Multiple issues compound the problem
 - Requires understanding of middleware execution flow
 - Real-world scenario that happens in production!
+- The fix is simple once you understand the problem

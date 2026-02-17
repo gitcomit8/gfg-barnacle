@@ -56,9 +56,12 @@ where
         let path = req.path().to_string();
         
         // FIX: Whitelist public routes that don't need authentication
-        let public_routes = vec!["/", "/login", "/auth/login", "/auth/logout", "/auth/status"];
+        let public_routes = vec!["/", "/login"];
+        let public_prefixes = vec!["/auth/"];
         
-        let is_public = public_routes.iter().any(|&route| path.starts_with(route));
+        // Check exact matches and prefix matches
+        let is_public = public_routes.contains(&path.as_str()) || 
+                       public_prefixes.iter().any(|&prefix| path.starts_with(prefix));
         
         if is_public {
             // Allow public routes to pass through without authentication
@@ -100,11 +103,13 @@ where
 
 ## Key Changes
 
-1. **Added `public_routes` whitelist**: Routes like `/`, `/login`, and `/auth/*` are explicitly marked as public and skip authentication checks.
+1. **Added route whitelisting**: Public routes (`/`, `/login`) and public prefixes (`/auth/*`) are explicitly marked as public and skip authentication checks.
 
-2. **Check if route is public first**: Before checking authentication, we verify if the requested route is in the public list.
+2. **Proper path matching**: Uses exact path matching for specific routes and prefix matching for route groups like `/auth/*`.
 
-3. **Only redirect protected routes**: Authentication is only required for routes NOT in the public list.
+3. **Check if route is public first**: Before checking authentication, we verify if the requested route is in the public list or matches a public prefix.
+
+4. **Only redirect protected routes**: Authentication is only required for routes NOT in the public list.
 
 The minimal change is adding the route whitelisting logic at the beginning of the `call` method. Everything else remains the same.
 
