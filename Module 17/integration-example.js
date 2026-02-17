@@ -171,16 +171,31 @@ class ImageProcessorComponent extends React.Component {
  * This is what causes the cache to become stale
  */
 function renderUIOverlay(canvas) {
-    const ctx = canvas.getContext('2d');
+    // Get the WebGL context (the same one WASM is using)
+    const gl = canvas.getContext('webgl');
     
-    // Draw semi-transparent overlay
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Create a simple UI shader that JS might use
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, `
+        attribute vec2 position;
+        void main() { gl_Position = vec4(position, 0.0, 1.0); }
+    `);
+    gl.compileShader(vertexShader);
     
-    // Draw UI text
-    ctx.fillStyle = 'white';
-    ctx.font = '16px Arial';
-    ctx.fillText('UI Overlay', 10, 30);
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, `
+        precision mediump float;
+        void main() { gl_FragColor = vec4(1.0, 1.0, 1.0, 0.5); }
+    `);
+    gl.compileShader(fragmentShader);
+    
+    const uiProgram = gl.createProgram();
+    gl.attachShader(uiProgram, vertexShader);
+    gl.attachShader(uiProgram, fragmentShader);
+    gl.linkProgram(uiProgram);
+    
+    // BUG TRIGGER: Use this different shader program
+    gl.useProgram(uiProgram);
     
     // This modified the GL context!
     // WASM's cached state is now invalid
@@ -205,9 +220,10 @@ async function multiCanvasExample() {
     // Process canvas 1
     processor1.apply_grayscale();
     
-    // JS draws on canvas 2 - modifies GL state
-    const ctx2 = canvas2.getContext('2d');
-    ctx2.fillRect(0, 0, 100, 100);
+    // JS modifies canvas 1's GL state
+    // Simulate a UI library that uses the same canvas/context
+    const tempProgram = gl1.createProgram();
+    gl1.useProgram(tempProgram);  // Changes GL state on canvas1
     
     // Process canvas 1 again - might use stale cache!
     processor1.apply_invert();  // BUG RISK!

@@ -416,38 +416,62 @@
         
         window.renderJSOverlay = function() {
             // This modifies the GL context state, invalidating WASM's cache
-            const canvas = document.getElementById('mainCanvas');
-            const ctx = canvas.getContext('2d');
+            // We use the WebGL context directly to simulate a JS library that shares the context
             
-            // Draw a semi-transparent overlay
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Create a simple shader program that JS might use for UI rendering
+            const vertexShaderSource = `
+                attribute vec2 a_position;
+                void main() {
+                    gl_Position = vec4(a_position, 0.0, 1.0);
+                }
+            `;
             
-            ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-            ctx.font = '24px Arial';
-            ctx.fillText('JS Overlay', 120, 150);
+            const fragmentShaderSource = `
+                precision mediump float;
+                uniform vec4 u_color;
+                void main() {
+                    gl_FragColor = u_color;
+                }
+            `;
+            
+            // This creates and uses a different shader program, invalidating WASM's cache
+            const vShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vShader, vertexShaderSource);
+            gl.compileShader(vShader);
+            
+            const fShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fShader, fragmentShaderSource);
+            gl.compileShader(fShader);
+            
+            const jsProgram = gl.createProgram();
+            gl.attachShader(jsProgram, vShader);
+            gl.attachShader(jsProgram, fShader);
+            gl.linkProgram(jsProgram);
+            
+            // BUG TRIGGER: Use this JS-side program
+            // This changes GL state without WASM knowing!
+            gl.useProgram(jsProgram);
             
             glStateModified = true;
             updateStatus('Warning', 'JS modified GL state - WASM cache is now stale!');
-            addLog('🔴 JavaScript modified GL context', 'bug');
+            addLog('🔴 JavaScript bound different shader program', 'bug');
             document.getElementById('bugIndicator').classList.add('active');
         };
         
         window.drawJSRectangle = function() {
             // Another JS operation that modifies GL state
-            const canvas = document.getElementById('mainCanvas');
-            const ctx = canvas.getContext('2d');
+            // Simulate JS code binding a different buffer
             
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-            ctx.fillRect(
-                Math.random() * (canvas.width - 100),
-                Math.random() * (canvas.height - 100),
-                100,
-                100
-            );
+            const tempBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, tempBuffer);
+            
+            const tempData = new Float32Array([
+                -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, 0.5
+            ]);
+            gl.bufferData(gl.ARRAY_BUFFER, tempData, gl.STATIC_DRAW);
             
             glStateModified = true;
-            updateStatus('Warning', 'JS drew rectangle - WASM cache is stale!');
+            updateStatus('Warning', 'JS bound different buffer - WASM cache is stale!');
             addLog('🔴 JavaScript drew on canvas', 'bug');
             document.getElementById('bugIndicator').classList.add('active');
         };
