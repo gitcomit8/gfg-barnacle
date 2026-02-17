@@ -1,0 +1,39 @@
+{
+  "name": "reentrancy-deadlock-module",
+  "version": "0.1.0",
+  "description": "A buggy module demonstrating re-entrancy deadlock in JS-to-Rust-to-JS callbacks",
+  "main": "pkg/reentrancy_deadlock_module.js",
+  "types": "pkg/reentrancy_deadlock_module.d.ts",
+  "files": [
+    "pkg"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web",
+    "build:nodejs": "wasm-pack build --target nodejs",
+    "build:bundler": "wasm-pack build --target bundler",
+    "test": "cargo test",
+    "clean": "rm -rf pkg target"
+  },
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "rust",
+    "re-entrancy",
+    "deadlock",
+    "refcell",
+    "callback",
+    "bug",
+    "educational",
+    "ffi",
+    "panic"
+  ],
+  "author": "GFG Barnacle Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gitcomit8/gfg-barnacle"
+  },
+  "devDependencies": {
+    "wasm-pack": "^0.12.0"
+  }
+}

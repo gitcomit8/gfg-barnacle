@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 18: Re-entrancy Deadlock Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .section p {
+            margin-bottom: 15px;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .button-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .button-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .button-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .button-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .output-line {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .output-line.error {
+            color: #f48771;
+            font-weight: bold;
+        }
+
+        .output-line.success {
+            color: #89d185;
+        }
+
+        .output-line.warning {
+            color: #e5c07b;
+        }
+
+        .output-line.info {
+            color: #61afef;
+        }
+
+        .items-list {
+            list-style: none;
+            margin-top: 10px;
+        }
+
+        .items-list li {
+            padding: 10px;
+            background: white;
+            margin-bottom: 5px;
+            border-radius: 4px;
+            border-left: 4px solid #667eea;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .badge-bug {
+            background: #f5576c;
+            color: white;
+        }
+
+        .badge-safe {
+            background: #00f2fe;
+            color: white;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .warning-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .warning-box p {
+            color: #856404;
+            margin: 0;
+        }
+
+        .code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #d63384;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐛 Module 18: Re-entrancy Deadlock</h1>
+            <p>Interactive demonstration of JS-to-Rust-to-JS callback bugs</p>
+        </div>
+
+        <div class="content">
+            <div class="warning-box">
+                <h3>⚠️ Warning: This Module Contains Intentional Bugs!</h3>
+                <p>
+                    This demo will show you how re-entrancy issues cause <span class="code">RefCell</span> 
+                    panics when JavaScript callbacks call back into Rust. The "Trigger Bug" button will 
+                    crash the WASM module to demonstrate the issue.
+                </p>
+            </div>
+
+            <!-- Add Items Section -->
+            <div class="section">
+                <h2>1. Add Items <span class="badge badge-safe">SAFE</span></h2>
+                <p>Add items to the processor. This operation is safe and won't trigger the bug.</p>
+                
+                <div class="controls">
+                    <div class="input-group">
+                        <label for="itemInput">Item Name:</label>
+                        <input type="text" id="itemInput" placeholder="Enter item name..." />
+                    </div>
+                    <button class="button button-primary" onclick="addItem()">Add Item</button>
+                    <button class="button button-success" onclick="addMultipleItems()">Add 5 Sample Items</button>
+                </div>
+
+                <ul class="items-list" id="itemsList"></ul>
+            </div>
+
+            <!-- Safe Processing Section -->
+            <div class="section">
+                <h2>2. Safe Processing <span class="badge badge-safe">SAFE</span></h2>
+                <p>Process items with a callback that DOES NOT call back into Rust. This is safe.</p>
+                
+                <button class="button button-success" onclick="safeProcess()">
+                    Process Items (Safe)
+                </button>
+            </div>
+
+            <!-- Buggy Processing Section -->
+            <div class="section">
+                <h2>3. Buggy Processing <span class="badge badge-bug">BUG!</span></h2>
+                <p>
+                    Process items with a callback that tries to call <span class="code">get_item_count()</span> 
+                    from within the callback. This will trigger the re-entrancy bug and cause a panic!
+                </p>
+                
+                <button class="button button-danger" onclick="buggyProcess()">
+                    ⚠️ Trigger Re-entrancy Bug!
+                </button>
+            </div>
+
+            <!-- State Query Section -->
+            <div class="section">
+                <h2>4. Query State <span class="badge badge-safe">SAFE (when not processing)</span></h2>
+                <p>Query the current state of the processor. Safe when not processing.</p>
+                
+                <div class="controls">
+                    <button class="button button-primary" onclick="getItemCount()">Get Item Count</button>
+                    <button class="button button-primary" onclick="getSummary()">Get Summary</button>
+                    <button class="button button-danger" onclick="clearItems()">Clear All Items</button>
+                </div>
+            </div>
+
+            <!-- Output Console -->
+            <div class="section">
+                <h2>Console Output</h2>
+                <div class="output" id="output"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { DataProcessor } from './pkg/reentrancy_deadlock_module.js';
+
+        let processor = null;
+        let itemCount = 0;
+
+        // Initialize the WASM module
+        async function initModule() {
+            try {
+                await init();
+                processor = new DataProcessor();
+                log('✅ WASM module loaded successfully', 'success');
+                log('ℹ️  DataProcessor created and ready', 'info');
+            } catch (error) {
+                log('❌ Failed to load WASM module: ' + error, 'error');
+            }
+        }
+
+        // Logging function
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const line = document.createElement('div');
+            line.className = `output-line ${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Add item function
+        window.addItem = function() {
+            if (!processor) {
+                log('❌ Processor not initialized', 'error');
+                return;
+            }
+
+            const input = document.getElementById('itemInput');
+            const item = input.value.trim();
+            
+            if (!item) {
+                log('⚠️  Please enter an item name', 'warning');
+                return;
+            }
+
+            try {
+                processor.add_item(item);
+                itemCount++;
+                input.value = '';
+                updateItemsList();
+                log(`✅ Added item: "${item}"`, 'success');
+            } catch (error) {
+                log(`❌ Error adding item: ${error}`, 'error');
+            }
+        };
+
+        // Add multiple items
+        window.addMultipleItems = function() {
+            const items = ['Apple', 'Banana', 'Cherry', 'Date', 'Elderberry'];
+            items.forEach((item, index) => {
+                processor.add_item(item);
+                itemCount++;
+                log(`✅ Added item ${index + 1}: "${item}"`, 'success');
+            });
+            updateItemsList();
+        };
+
+        // Update items list display
+        function updateItemsList() {
+            const list = document.getElementById('itemsList');
+            list.innerHTML = '';
+            for (let i = 0; i < itemCount; i++) {
+                const li = document.createElement('li');
+                li.textContent = `Item ${i + 1}`;
+                list.appendChild(li);
+            }
+        }
+
+        // Safe processing (callback does NOT call back into Rust)
+        window.safeProcess = function() {
+            if (!processor) {
+                log('❌ Processor not initialized', 'error');
+                return;
+            }
+
+            try {
+                log('🔄 Starting SAFE processing...', 'info');
+                
+                processor.process_items((item, index) => {
+                    // This is SAFE - we only use JavaScript operations
+                    log(`  Processing item ${index}: ${item}`, 'info');
+                });
+                
+                log('✅ Safe processing completed successfully!', 'success');
+            } catch (error) {
+                log(`❌ Error during safe processing: ${error}`, 'error');
+            }
+        };
+
+        // Buggy processing (callback DOES call back into Rust)
+        window.buggyProcess = function() {
+            if (!processor) {
+                log('❌ Processor not initialized', 'error');
+                return;
+            }
+
+            try {
+                log('⚠️  Starting BUGGY processing...', 'warning');
+                log('⚠️  This will trigger a re-entrancy panic!', 'warning');
+                
+                processor.process_items((item, index) => {
+                    log(`  Processing item ${index}: ${item}`, 'info');
+                    
+                    // BUG: This call back into Rust causes the panic!
+                    log('  🐛 Calling get_item_count() from callback...', 'warning');
+                    const count = processor.get_item_count(); // ❌ PANIC HERE!
+                    
+                    log(`  Item count: ${count}`, 'info');
+                });
+                
+                // This line won't be reached
+                log('✅ Processing completed', 'success');
+            } catch (error) {
+                log(`💥 PANIC! Re-entrancy error detected!`, 'error');
+                log(`   Error: ${error}`, 'error');
+                log(`   This is the bug! The callback tried to borrow RefCell while it was already borrowed.`, 'error');
+            }
+        };
+
+        // Get item count
+        window.getItemCount = function() {
+            if (!processor) {
+                log('❌ Processor not initialized', 'error');
+                return;
+            }
+
+            try {
+                const count = processor.get_item_count();
+                log(`ℹ️  Current item count: ${count}`, 'info');
+            } catch (error) {
+                log(`❌ Error getting item count: ${error}`, 'error');
+            }
+        };
+
+        // Get summary
+        window.getSummary = function() {
+            if (!processor) {
+                log('❌ Processor not initialized', 'error');
+                return;
+            }
+
+            try {
+                const summary = processor.get_summary();
+                log(`ℹ️  Summary: ${summary}`, 'info');
+            } catch (error) {
+                log(`❌ Error getting summary: ${error}`, 'error');
+            }
+        };
+
+        // Clear items
+        window.clearItems = function() {
+            if (!processor) {
+                log('❌ Processor not initialized', 'error');
+                return;
+            }
+
+            try {
+                processor.clear();
+                itemCount = 0;
+                updateItemsList();
+                log('✅ All items cleared', 'success');
+            } catch (error) {
+                log(`❌ Error clearing items: ${error}`, 'error');
+            }
+        };
+
+        // Initialize on page load
+        initModule();
+    </script>
+</body>
+</html>
